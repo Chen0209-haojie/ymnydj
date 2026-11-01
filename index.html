@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>进出货管理系统</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f7fb; color: #1f2937; font-size: 14px;
+  }
+  .app { display: none; min-height: 100vh; }
+
+  /* ============ 环境提示 ============ */
+  #env-tip {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: #0f172a; color: #e2e8f0; z-index: 2000; padding: 24px; text-align: center;
+  }
+  #env-tip .box { max-width: 560px; line-height: 1.9; }
+  #env-tip h1 { font-size: 20px; color: #fff; margin-bottom: 14px; }
+  #env-tip code {
+    background: #1e293b; padding: 3px 8px; border-radius: 6px;
+    color: #93c5fd; font-size: 13px;
+  }
+
+  /* ============ 登录 / 注册 ============ */
+  #auth-page {
+    position: fixed; inset: 0; display: none;
+    align-items: center; justify-content: center; padding: 20px; z-index: 1000;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
+  }
+  .auth-card {
+    width: 100%; max-width: 400px; background: #fff; border-radius: 16px;
+    padding: 28px; box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+  }
+  .auth-brand { font-size: 20px; font-weight: 700; text-align: center; letter-spacing: .5px; }
+  .auth-sub { text-align: center; color: #64748b; font-size: 13px; margin: 8px 0 20px; }
+  .tabs { display: flex; background: #f1f5f9; border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+  .tab {
+    flex: 1; border: none; background: transparent; padding: 9px; border-radius: 8px;
+    font-size: 14px; cursor: pointer; color: #475569; font-family: inherit; transition: .15s;
+  }
+  .tab.active { background: #fff; color: #2563eb; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .auth-form label {
+    display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;
+    font-size: 13px; color: #475569; font-weight: 500;
+  }
+  .auth-err { color: #dc2626; font-size: 13px; min-height: 20px; margin-bottom: 6px; }
+  .auth-tip { margin-top: 16px; font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.7; }
+
+  /* ============ 侧边栏 ============ */
+  .sidebar {
+    width: 220px; flex: 0 0 220px; background: #0f172a; color: #cbd5e1;
+    display: flex; flex-direction: column; padding: 18px 12px;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .logo { font-size: 16px; font-weight: 700; color: #fff; padding: 6px 10px 18px; letter-spacing: .5px; }
+  .nav-item {
+    display: block; padding: 10px 12px; border-radius: 8px; color: #cbd5e1;
+    text-decoration: none; cursor: pointer; margin-bottom: 4px; user-select: none;
+    transition: .15s; font-size: 14px;
+  }
+  .nav-item:hover { background: #1e293b; color: #fff; }
+  .nav-item.active { background: #2563eb; color: #fff; font-weight: 600; }
+  .sidebar .footer { margin-top: auto; font-size: 11px; color: #64748b; padding: 10px 4px 8px; line-height: 1.6; }
+  .sync-state { font-size: 11px; padding: 6px 10px; border-radius: 6px; background: #1e293b; color: #94a3b8; margin-bottom: 8px; }
+  .sync-state.ok { color: #86efac; }
+  .sync-state.err { color: #fca5a5; }
+  .user-box {
+    display: flex; align-items: center; gap: 9px; background: #1e293b;
+    border-radius: 10px; padding: 9px 10px; margin-top: 8px;
+  }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: #2563eb; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; flex: none;
+  }
+  .uinfo { flex: 1; min-width: 0; }
+  .uname { font-size: 13px; color: #e2e8f0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .urole { font-size: 11px; color: #94a3b8; }
+  .btn-logout {
+    border: 1px solid #334155; background: transparent; color: #cbd5e1;
+    font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; font-family: inherit;
+  }
+  .btn-logout:hover { background: #334155; color: #fff; }
+
+  /* ============ 主区域 ============ */
+  .main { flex: 1; padding: 24px; min-width: 0; }
+  .view { display: none; }
+  .view.active { display: block; animation: fade .18s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1;transform:none;} }
+
+  h2 { font-size: 20px; margin: 0 0 16px; }
+  h3 { font-size: 15px; margin: 0 0 12px; color: #334155; }
+
+  .panel {
+    background: #fff; border: 1px solid #e6eaf2; border-radius: 12px;
+    padding: 18px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .card {
+    background: #fff; border: 1px solid #e6eaf2; border-radius: 12px; padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+  .card .label { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
+  .card .value { font-size: 22px; font-weight: 700; letter-spacing: -.5px; }
+  .card .sub { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+  .card.highlight { background: linear-gradient(135deg, #eff6ff, #ffffff); border-color: #bfdbfe; }
+  .green { color: #16a34a; } .red { color: #dc2626; } .blue { color: #2563eb; }
+  .muted { color: #94a3b8; } .warn { color: #d97706; }
+
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e6eaf2; }
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13px; }
+  thead th {
+    background: #f8fafc; color: #475569; font-weight: 600; text-align: left;
+    padding: 10px 12px; white-space: nowrap; border-bottom: 1px solid #e6eaf2;
+  }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #f8fafc; }
+  td.empty { text-align: center; color: #94a3b8; padding: 26px 0; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .tag-in { background: #dbeafe; color: #1d4ed8; }
+  .tag-out { background: #dcfce7; color: #15803d; }
+  .tag-open { background: #fef3c7; color: #b45309; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #475569; font-weight: 500; }
+  label.span2 { grid-column: span 2; }
+  input, select, textarea {
+    font-family: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid #d8dfeb;
+    border-radius: 8px; outline: none; background: #fff; color: #1f2937; transition: .15s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  input[readonly] { background: #f8fafc; color: #64748b; }
+  .form-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+  .btn {
+    font-family: inherit; font-size: 14px; padding: 9px 18px; border-radius: 8px;
+    border: 1px solid #d8dfeb; background: #fff; color: #334155; cursor: pointer;
+    transition: .15s; font-weight: 500;
+  }
+  .btn:hover { background: #f1f5f9; }
+  .btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .btn.primary:hover { background: #1d4ed8; }
+  .btn.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
+  .btn.danger:hover { background: #fee2e2; }
+  .btn.tiny { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+  .btn.block { width: 100%; padding: 11px; font-size: 15px; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .filters label { flex: 0 0 auto; min-width: 130px; }
+
+  .info-bar {
+    margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+    background: #f0f7ff; border: 1px solid #d6e6ff; font-size: 13px; color: #334155; line-height: 1.8;
+  }
+  .info-bar.amber { background: #fffbeb; border-color: #fde68a; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 40px; transform: translate(-50%, 20px);
+    background: #0f172a; color: #fff; padding: 11px 22px; border-radius: 10px;
+    font-size: 14px; opacity: 0; pointer-events: none; transition: .25s; z-index: 999;
+    box-shadow: 0 8px 24px rgba(15,23,42,.25); max-width: 80vw; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 820px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; flex: none; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; }
+    .logo { width: 100%; padding-bottom: 10px; }
+    .sidebar .footer { display: none; }
+    .sync-state { display: none; }
+    .user-box { margin-top: 0; margin-left: auto; }
+    .main { padding: 16px; }
+    label.span2 { grid-column: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 环境提示：直接用 file:// 打开时显示 -->
+<div id="env-tip">
+  <div class="box">
+    <h1>⚠ 需要通过服务器访问</h1>
+    <p>本系统需要跨浏览器共享数据，必须由后端服务提供访问。</p>
+    <p>请在包含 <code>server.js</code> 与 <code>index.html</code> 的目录下执行：</p>
+    <p><code>node server.js</code></p>
+    <p>然后浏览器打开 <code>http://localhost:3000</code></p>
+  </div>
+</div>
+
+<!-- ==================== 登录 / 注册页 ==================== -->
+<div id="auth-page">
+  <div class="auth-card">
+    <div class="auth-brand">📦 进出货管理系统</div>
+    <div class="auth-sub">账号登录 · 任意浏览器登录同一账号即可看到全部历史数据</div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="login" type="button">登 录</button>
+      <button class="tab" data-tab="register" type="button">注册新账号</button>
+    </div>
+
+    <form id="login-form" class="auth-form" autocomplete="off">
+      <label>账号
+        <input id="login-user" placeholder="请输入账号" autocomplete="username" required>
+      </label>
+      <label>密码
+        <input id="login-pwd" type="password" placeholder="请输入密码" autocomplete="current-password" required>
+      </label>
+      <div class="auth-err" id="login-err"></div>
+      <button class="btn primary block" type="submit">登 录</button>
+    </form>
+
+    <form id="register-form" class="auth-form" style="display:none" autocomplete="off">
+      <label>账号
+        <input id="reg-user" placeholder="3-20 位，字母/数字/下划线/中文" required>
+      </label>
+      <label>密码
+        <input id="reg-pwd" type="password" placeholder="至少 6 位" required>
+      </label>
+      <label>确认密码
+        <input id="reg-pwd2" type="password" placeholder="请再次输入密码" required>
+      </label>
+      <div class="auth-err" id="reg-err"></div>
+      <button class="btn primary block" type="submit">注册并登录</button>
+    </form>
+
+    <div class="auth-tip">
+      数据保存在服务器端（data.json）<br>
+      换电脑、换浏览器登录同一账号，历史数据完全一致
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 主系统 ==================== -->
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="logo">📦 进出货管理系统</div>
+    <a class="nav-item active" data-view="home">🏠 首页总览</a>
+    <a class="nav-item" data-view="add-in">➕ 新增进货单</a>
+    <a class="nav-item" data-view="add-out">➕ 新增销售单</a>
+    <a class="nav-item" data-view="records">📋 历史单据</a>
+    <a class="nav-item" data-view="funds">💰 资金台账</a>
+    <a class="nav-item" data-view="suppliers">🏭 供货商管理</a>
+    <a class="nav-item" data-view="customers">👥 客户管理</a>
+
+    <div class="footer">数据保存在服务器 · 跨浏览器同步</div>
+
+    <div class="sync-state" id="sync-state">已连接</div>
+
+    <div class="user-box">
+      <div class="avatar" id="side-avatar">A</div>
+      <div class="uinfo">
+        <div class="uname" id="side-username">—</div>
+        <div class="urole">已登录</div>
+      </div>
+      <button class="btn-logout" id="btn-logout" type="button">退出</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ============ 首页总览 ============ -->
+    <section class="view active" id="view-home">
+      <h2>首页总览</h2>
+      <div class="cards" id="home-cards"></div>
+
+      <div class="panel">
+        <h3>冻精库存结余（按 品种 + 牛号 独立核算）</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>冻精品种</th><th>牛号</th><th>单位</th><th>库存余量</th>
+                <th>加权成本单价</th><th>库存金额</th><th>最近业务日期</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-inventory"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>最近业务记录（最新 8 笔）</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>单号</th><th>类型</th><th>日期</th><th>冻精品种 / 牛号</th>
+                <th>数量</th><th>单位</th><th>结存</th><th>单价</th><th>金额</th><th>毛利</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-recent"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 新增进货单 ============ -->
+    <section class="view" id="view-add-in">
+      <h2>新增进货单</h2>
+      <form class="panel" id="form-in" autocomplete="off">
+        <div class="form-grid">
+          <label>进出货单号<input id="in-no" readonly></label>
+          <label>操作日期<input type="date" id="in-date" required></label>
+          <label>供货商<input id="in-supplier" list="dl-suppliers" placeholder="选择或输入供货商"></label>
+          <label>冻精品种 <span class="muted">*</span>
+            <input id="in-breed" list="dl-breeds" placeholder="如：荷斯坦 / 西门塔尔" required>
+          </label>
+          <label>牛号 <span class="muted">*</span>
+            <input id="in-bull" list="dl-bulls" placeholder="如：CN-12345678" required>
+          </label>
+          <label>单位 <span class="muted">*</span>
+            <input id="in-unit" list="dl-units" placeholder="如：支 / 剂 / 份" required>
+          </label>
+          <label>进货数量 <span class="muted">*</span>
+            <input type="number" id="in-qty" min="0.01" step="0.01" placeholder="0" required>
+          </label>
+          <label>进货单价（元） <span class="muted">*</span>
+            <input type="number" id="in-price" min="0" step="0.01" placeholder="0.00" required>
+          </label>
+          <label>备注<input id="in-remark" placeholder="选填"></label>
+        </div>
+        <div class="info-bar">进货保存后将自动增加该「品种 + 牛号」的库存余量，并计入资金支出。</div>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">保存进货单</button>
+          <button type="reset" class="btn">重置</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ 新增销售单 ============ -->
+    <section class="view" id="view-add-out">
+      <h2>新增销售单</h2>
+      <form class="panel" id="form-out" autocomplete="off">
+        <div class="form-grid">
+          <label>进出货单号<input id="out-no" readonly></label>
+          <label>操作日期<input type="date" id="out-date" required></label>
+          <label>销售客户<input id="out-customer" list="dl-customers" placeholder="选择或输入客户"></label>
+          <label>冻精品种 <span class="muted">*</span>
+            <input id="out-breed" list="dl-breeds" placeholder="如：荷斯坦 / 西门塔尔" required>
+          </label>
+          <label>牛号 <span class="muted">*</span>
+            <input id="out-bull" list="dl-bulls" placeholder="如：CN-12345678" required>
+          </label>
+          <label>单位 <span class="muted">*</span>
+            <input id="out-unit" list="dl-units" placeholder="选择商品后自动带出" required>
+          </label>
+          <label>销售数量 <span class="muted">*</span>
+            <input type="number" id="out-qty" min="0.01" step="0.01" placeholder="0" required>
+          </label>
+          <label>销售单价（元） <span class="muted">*</span>
+            <input type="number" id="out-price" min="0" step="0.01" placeholder="0.00" required>
+          </label>
+          <label>备注<input id="out-remark" placeholder="选填"></label>
+        </div>
+        <div class="info-bar" id="out-info">选择商品后，这里会显示该「品种 + 牛号」的当前库存与加权成本。</div>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">保存销售单</button>
+          <button type="reset" class="btn">重置</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ 历史单据 ============ -->
+    <section class="view" id="view-records">
+      <h2>历史单据</h2>
+
+      <div class="panel">
+        <div class="filters">
+          <label>类型
+            <select id="filter-type">
+              <option value="">全部</option>
+              <option value="in">进货</option>
+              <option value="out">销售</option>
+            </select>
+          </label>
+          <label>开始日期<input type="date" id="filter-from"></label>
+          <label>结束日期<input type="date" id="filter-to"></label>
+          <label>关键字<input id="filter-kw" placeholder="单号 / 品种 / 牛号 / 往来单位"></label>
+          <button class="btn" id="btn-filter-reset" type="button">重置筛选</button>
+          <button class="btn" id="btn-refresh" type="button">刷新数据</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>单号</th><th>类型</th><th>操作日期</th><th>冻精品种</th><th>牛号</th>
+                <th>数量</th><th>单位</th><th>库存余量</th><th>进货/成本单价</th><th>销售单价</th>
+                <th>金额</th><th>毛利</th><th>毛利率</th><th>往来单位</th><th>备注</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-records"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 资金台账 ============ -->
+    <section class="view" id="view-funds">
+      <h2>资金台账</h2>
+
+      <form class="panel" id="form-opening" autocomplete="off">
+        <h3>原始资金（期初资金）录入</h3>
+        <div class="form-grid">
+          <label>期初金额（元）<input type="number" id="opening-amount" min="0" step="0.01" placeholder="0.00"></label>
+          <label>期初日期<input type="date" id="opening-date"></label>
+          <label class="span2">备注<input id="opening-remark" placeholder="如：开业备用金 / 初始投入"></label>
+        </div>
+        <div class="info-bar amber">当前资金余额 = 期初资金 + 累计销售收入 − 累计进货支出。</div>
+        <div class="form-actions">
+          <button class="btn primary" type="submit">保存期初资金</button>
+          <button class="btn" type="button" id="btn-opening-clear">清零</button>
+        </div>
+      </form>
+
+      <div class="cards" id="funds-cards"></div>
+
+      <div class="panel">
+        <h3>资金流水（期初资金为起点，按时间顺序累计余额）</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th><th>单号</th><th>业务类型</th><th>摘要</th>
+                <th>资金收入</th><th>资金支出</th><th>资金余额</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-funds"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 供货商管理 ============ -->
+    <section class="view" id="view-suppliers">
+      <h2>供货商管理</h2>
+      <form class="panel" id="form-supplier" autocomplete="off">
+        <div class="form-grid">
+          <label>供货商名称 <span class="muted">*</span><input name="name" required></label>
+          <label>联系人<input name="contact"></label>
+          <label>联系电话<input name="phone"></label>
+          <label>地址<input name="address"></label>
+          <label class="span2">备注<input name="remark"></label>
+        </div>
+        <div class="form-actions"><button type="submit" class="btn primary">添加供货商</button></div>
+      </form>
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>名称</th><th>联系人</th><th>电话</th><th>地址</th><th>备注</th><th>操作</th></tr></thead>
+            <tbody id="tbody-supplier"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 客户管理 ============ -->
+    <section class="view" id="view-customers">
+      <h2>客户管理</h2>
+      <form class="panel" id="form-customer" autocomplete="off">
+        <div class="form-grid">
+          <label>客户名称 <span class="muted">*</span><input name="name" required></label>
+          <label>联系人<input name="contact"></label>
+          <label>联系电话<input name="phone"></label>
+          <label>地址<input name="address"></label>
+          <label class="span2">备注<input name="remark"></label>
+        </div>
+        <div class="form-actions"><button type="submit" class="btn primary">添加客户</button></div>
+      </form>
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>名称</th><th>联系人</th><th>电话</th><th>地址</th><th>备注</th><th>操作</th></tr></thead>
+            <tbody id="tbody-customer"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 自动补全数据源 -->
+<datalist id="dl-breeds"></datalist>
+<datalist id="dl-bulls"></datalist>
+<datalist id="dl-units">
+  <option value="支"></option>
+  <option value="剂"></option>
+  <option value="份"></option>
+  <option value="个"></option>
+  <option value="件"></option>
+  <option value="箱"></option>
+  <option value="瓶"></option>
+  <option value="包"></option>
+</datalist>
+<datalist id="dl-suppliers"></datalist>
+<datalist id="dl-customers"></datalist>
+
+<div id="toast"></div>
+
+<script>
+/* =========================================================
+   进出货管理系统（前端）
+   - 后端 API 存储，跨浏览器 / 跨设备同账号数据一致
+   - 字段：冻精品种、牛号、数量、单位、库存余量、
+           进货单价、销售单价、毛利、毛利率、操作日期
+   - 每个「品种 + 牛号」独立核算库存结余
+   ========================================================= */
+
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
+const money = n => '¥' + (Number(n) || 0).toFixed(2);
+const fmtQty = n => { const v = round2(n); return Number.isInteger(v) ? String(v) : v.toFixed(2); };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function today() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+/* =========================================================
+   一、API 封装
+   ========================================================= */
+const TOKEN_KEY = 'inout_token_v3';
+let token = localStorage.getItem(TOKEN_KEY) || '';
+let currentUser = null;
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  let res;
+  try {
+    res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+  } catch (e) {
+    throw new Error('无法连接服务器');
+  }
+  const json = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    logoutLocal();
+    throw new Error(json.msg || '登录已过期，请重新登录');
+  }
+  if (!res.ok || json.ok === false) throw new Error(json.msg || '请求失败');
+  return json;
+}
+
+function setSyncState(text, type) {
+  const el = $('#sync-state');
+  el.textContent = text;
+  el.className = 'sync-state' + (type ? ' ' + type : '');
+}
+
+/* =========================================================
+   二、数据层
+   ========================================================= */
+let db = {
+  openingCapital: 0, openingDate: '', openingRemark: '',
+  suppliers: [], customers: [], records: []
+};
+
+function normalizeDb(obj) {
+  const o = obj || {};
+  return {
+    openingCapital: typeof o.openingCapital === 'number' ? round2(o.openingCapital) : 0,
+    openingDate:    o.openingDate    || '',
+    openingRemark:  o.openingRemark  || '',
+    suppliers: Array.isArray(o.suppliers) ? o.suppliers : [],
+    customers: Array.isArray(o.customers) ? o.customers : [],
+    records:   Array.isArray(o.records)   ? o.records   : []
+  };
+}
+
+/* ---------- 保存（防抖 + 串行） ---------- */
+let saveTimer = null, saving = false, pendingSave = false;
+
+function save() {
+  if (!token) return;
+  setSyncState('正在保存…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 500);
+}
+
+async function doSave() {
+  if (saving) { pendingSave = true; return; }
+  saving = true;
+  try {
+    await api('/api/data', { method: 'PUT', body: JSON.stringify({ data: db }) });
+    setSyncState('已保存 · ' + new Date().toLocaleTimeString(), 'ok');
+  } catch (e) {
+    setSyncState('保存失败：' + e.message, 'err');
+    toast('保存失败：' + e.message);
+  } finally {
+    saving = false;
+    if (pendingSave) { pendingSave = false; doSave(); }
+  }
+}
+
+/* ---------- 拉取 ---------- */
+async function pullData(silent) {
+  const r = await api('/api/data');
+  db = normalizeDb(r.data);
+  recalcAll(true);
+  refreshDatalists();
+  refreshAll();
+  fillOpeningForm();
+  if (!silent) setSyncState('已同步 · ' + new Date().toLocaleTimeString(), 'ok');
+}
+
+/* =========================================================
+   三、业务计算
+   ========================================================= */
+function sortedRecords() {
+  return [...db.records].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return (a.createdAt || 0) - (b.createdAt || 0);
+  });
+}
+
+const productKey = (breed, bullNo) => breed + '|' + bullNo;
+
+/** 全量重算（移动加权平均法） */
+function recalcAll(skipSave) {
+  const stock = {};
+  sortedRecords().forEach(r => {
+    r.qty = Number(r.qty) || 0;
+    r.unit = r.unit || '';
+    const k = productKey(r.breed, r.bullNo);
+    const s = stock[k] || (stock[k] = { qty: 0, amount: 0 });
+
+    if (r.type === 'in') {
+      const pp = Number(r.purchasePrice) || 0;
+      s.qty    = round2(s.qty + r.qty);
+      s.amount = round2(s.amount + r.qty * pp);
+      r.costPrice   = pp;
+      r.amount      = round2(r.qty * pp);
+      r.grossProfit = 0;
+      r.grossRate   = 0;
+    } else {
+      const avg  = s.qty > 0 ? s.amount / s.qty : 0;
+      const cost = round2(avg * r.qty);
+      const sp   = Number(r.salePrice) || 0;
+      r.costPrice   = round2(avg);
+      r.amount      = round2(r.qty * sp);
+      r.grossProfit = round2(r.amount - cost);
+      r.grossRate   = r.amount > 0 ? round2(r.grossProfit / r.amount * 100) : 0;
+      s.qty    = round2(s.qty - r.qty);
+      s.amount = round2(s.amount - cost);
+    }
+    r.stockAfter = s.qty;
+  });
+  if (!skipSave) save();
+}
+
+/** 每个「品种 + 牛号」的库存结余 */
+function computeInventory() {
+  const map = {};
+  sortedRecords().forEach(r => {
+    const k = productKey(r.breed, r.bullNo);
+    if (!map[k]) {
+      map[k] = {
+        key: k, breed: r.breed, bullNo: r.bullNo,
+        unit: r.unit || '', qty: 0, amount: 0, lastDate: r.date
+      };
+    }
+    const cp = Number(r.costPrice) || 0;
+    if (r.type === 'in') {
+      map[k].qty    = round2(map[k].qty + r.qty);
+      map[k].amount = round2(map[k].amount + r.qty * cp);
+    } else {
+      map[k].qty    = round2(map[k].qty - r.qty);
+      map[k].amount = round2(map[k].amount - r.qty * cp);
+    }
+    if (r.unit) map[k].unit = r.unit;
+    map[k].lastDate = r.date;
+  });
+  return map;
+}
+
+function findLastUnit(breed, bullNo) {
+  const list = sortedRecords().filter(r =>
+    r.breed === breed && r.bullNo === bullNo && r.unit);
+  return list.length ? list[list.length - 1].unit : '';
+}
+
+function genNo(prefix, date) {
+  const ds = (date || today()).replace(/-/g, '');
+  const p  = (prefix === 'in' ? 'JH' : 'XS') + ds;
+  let max = 0;
+  db.records.forEach(r => {
+    if (r.no && r.no.startsWith(p)) {
+      const n = parseInt(r.no.slice(p.length), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  return p + String(max + 1).padStart(3, '0');
+}
+
+function computeFunds() {
+  const opening = round2(db.openingCapital || 0);
+  let totalIn = 0, totalOut = 0, balance = opening;
+  sortedRecords().forEach(r => {
+    const income  = r.type === 'out' ? r.amount : 0;
+    const expense = r.type === 'in'  ? r.amount : 0;
+    totalIn  = round2(totalIn + income);
+    totalOut = round2(totalOut + expense);
+    balance  = round2(balance + income - expense);
+  });
+  return { opening, totalIn, totalOut, balance };
+}
+
+/* =========================================================
+   四、登录 / 注册 / 会话
+   ========================================================= */
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.tab').forEach(t => t.classList.toggle('active', t === tab));
+    $('#login-form').style.display    = tab.dataset.tab === 'login' ? '' : 'none';
+    $('#register-form').style.display = tab.dataset.tab === 'register' ? '' : 'none';
+    $('#login-err').textContent = '';
+    $('#reg-err').textContent   = '';
+  });
+});
+
+$('#login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const un  = $('#login-user').value.trim();
+  const pwd = $('#login-pwd').value;
+  const err = $('#login-err');
+  err.textContent = '';
+  if (!un || !pwd) { err.textContent = '请输入账号和密码'; return; }
+
+  try {
+    const r = await api('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: un, password: pwd })
+    });
+    token = r.token;
+    localStorage.setItem(TOKEN_KEY, token);
+    await enterSystem(r.user);
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
+});
+
+$('#register-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const un = $('#reg-user').value.trim();
+  const p1 = $('#reg-pwd').value;
+  const p2 = $('#reg-pwd2').value;
+  const err = $('#reg-err');
+  err.textContent = '';
+
+  if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{3,20}$/.test(un)) {
+    err.textContent = '账号需为 3-20 位字母、数字、下划线或中文'; return;
+  }
+  if (p1.length < 6) { err.textContent = '密码至少 6 位'; return; }
+  if (p1 !== p2)     { err.textContent = '两次输入的密码不一致'; return; }
+
+  try {
+    const r = await api('/api/register', {
+      method: 'POST',
+      body: JSON.stringify({ username: un, password: p1 })
+    });
+    token = r.token;
+    localStorage.setItem(TOKEN_KEY, token);
+    await enterSystem(r.user);
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
+});
+
+function logoutLocal() {
+  token = '';
+  currentUser = null;
+  localStorage.removeItem(TOKEN_KEY);
+  $('#app').style.display = 'none';
+  $('#auth-page').style.display = 'flex';
+}
+
+$('#btn-logout').addEventListener('click', async () => {
+  if (!confirm('确定退出登录吗？所有数据已保存到服务器。')) return;
+  clearTimeout(saveTimer);
+  try { await doSave(); } catch (e) {}
+  try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
+  logoutLocal();
+});
+
+/* ---------- 进入系统 ---------- */
+async function enterSystem(user) {
+  currentUser = user;
+  $('#auth-page').style.display = 'none';
+  $('#app').style.display = 'flex';
+  $('#side-username').textContent = user.username;
+  $('#side-avatar').textContent   = user.username.slice(0, 1).toUpperCase();
+
+  setSyncState('正在加载数据…');
+  await pullData(true);
+  setSyncState('已同步 · ' + new Date().toLocaleTimeString(), 'ok');
+
+  prepareInForm();
+  prepareOutForm();
+  fillOpeningForm();
+  showView('home');
+}
+
+/* =========================================================
+   五、视图切换
+   ========================================================= */
+function showView(name) {
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+  $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === name));
+  window.scrollTo(0, 0);
+
+  if (name === 'home')      renderHome();
+  if (name === 'records')   renderRecords();
+  if (name === 'funds')     { fillOpeningForm(); renderFunds(); }
+  if (name === 'suppliers') renderPartners('supplier');
+  if (name === 'customers') renderPartners('customer');
+  if (name === 'add-in')    prepareInForm();
+  if (name === 'add-out')   prepareOutForm();
+}
+
+$$('.nav-item').forEach(n => n.addEventListener('click', () => showView(n.dataset.view)));
+
+/* =========================================================
+   六、渲染：首页
+   ========================================================= */
+function renderHome() {
+  const inv     = computeInventory();
+  const items   = Object.values(inv);
+  const recs    = sortedRecords();
+  const inRecs  = recs.filter(r => r.type === 'in');
+  const outRecs = recs.filter(r => r.type === 'out');
+  const funds   = computeFunds();
+
+  const stockAmt = round2(items.reduce((s, i) => s + i.amount, 0));
+  const gross    = round2(outRecs.reduce((s, r) => s + r.grossProfit, 0));
+  const avgRate  = funds.totalIn > 0 ? round2(gross / funds.totalIn * 100) : 0;
+  const inStockCnt = items.filter(i => i.qty > 0).length;
+
+  $('#home-cards').innerHTML = `
+    <div class="card highlight">
+      <div class="label">当前资金余额</div>
+      <div class="value ${funds.balance >= 0 ? 'blue' : 'red'}">${money(funds.balance)}</div>
+      <div class="sub">期初 ${money(funds.opening)} + 收入 ${money(funds.totalIn)} − 支出 ${money(funds.totalOut)}</div>
+    </div>
+    <div class="card">
+      <div class="label">原始（期初）资金</div>
+      <div class="value ${funds.opening > 0 ? 'blue' : 'muted'}">${money(funds.opening)}</div>
+      <div class="sub">${db.openingDate ? '期初日期 ' + esc(db.openingDate) : '尚未录入，可在资金台账页设置'}</div>
+    </div>
+    <div class="card">
+      <div class="label">累计销售收入</div>
+      <div class="value green">${money(funds.totalIn)}</div>
+      <div class="sub">共 ${outRecs.length} 笔销售单</div>
+    </div>
+    <div class="card">
+      <div class="label">累计进货支出</div>
+      <div class="value red">${money(funds.totalOut)}</div>
+      <div class="sub">共 ${inRecs.length} 笔进货单</div>
+    </div>
+    <div class="card">
+      <div class="label">累计毛利</div>
+      <div class="value ${gross >= 0 ? 'green' : 'red'}">${money(gross)}</div>
+      <div class="sub">平均毛利率 ${avgRate.toFixed(2)}%</div>
+    </div>
+    <div class="card">
+      <div class="label">在库商品数</div>
+      <div class="value">${inStockCnt}</div>
+      <div class="sub">共 ${items.length} 个「品种 + 牛号」组合</div>
+    </div>
+    <div class="card">
+      <div class="label">库存成本金额</div>
+      <div class="value">${money(stockAmt)}</div>
+      <div class="sub">按移动加权平均成本计算</div>
+    </div>
+  `;
+
+  const tbInv = $('#tbody-inventory');
+  if (!items.length) {
+    tbInv.innerHTML = `<tr><td colspan="7" class="empty">暂无库存数据，请先录入进货单</td></tr>`;
+  } else {
+    tbInv.innerHTML = items
+      .sort((a, b) => a.breed.localeCompare(b.breed) || a.bullNo.localeCompare(b.bullNo))
+      .map(i => {
+        const avg = i.qty > 0 ? i.amount / i.qty : 0;
+        return `<tr>
+          <td>${esc(i.breed)}</td>
+          <td>${esc(i.bullNo)}</td>
+          <td>${esc(i.unit || '—')}</td>
+          <td><b class="${i.qty > 0 ? '' : (i.qty < 0 ? 'red' : 'muted')}">${fmtQty(i.qty)}</b></td>
+          <td>${money(avg)}</td>
+          <td>${money(i.amount)}</td>
+          <td>${esc(i.lastDate || '-')}</td>
+        </tr>`;
+      }).join('');
+  }
+
+  const tbRec = $('#tbody-recent');
+  const recent = recs.slice(-8).reverse();
+  if (!recent.length) {
+    tbRec.innerHTML = `<tr><td colspan="10" class="empty">暂无业务记录</td></tr>`;
+  } else {
+    tbRec.innerHTML = recent.map(r => `
+      <tr>
+        <td>${esc(r.no)}</td>
+        <td><span class="tag ${r.type === 'in' ? 'tag-in' : 'tag-out'}">${r.type === 'in' ? '进货' : '销售'}</span></td>
+        <td>${esc(r.date)}</td>
+        <td>${esc(r.breed)} / ${esc(r.bullNo)}</td>
+        <td>${fmtQty(r.qty)}</td>
+        <td>${esc(r.unit || '—')}</td>
+        <td>${fmtQty(r.stockAfter)}</td>
+        <td>${money(r.type === 'in' ? r.purchasePrice : r.salePrice)}</td>
+        <td class="${r.type === 'in' ? 'red' : 'green'}">${money(r.amount)}</td>
+        <td class="${r.grossProfit > 0 ? 'green' : (r.grossProfit < 0 ? 'red' : 'muted')}">
+          ${r.type === 'out' ? money(r.grossProfit) : '—'}
+        </td>
+      </tr>`).join('');
+  }
+}
+
+/* =========================================================
+   七、渲染：历史单据
+   ========================================================= */
+function renderRecords() {
+  const fType = $('#filter-type').value;
+  const fFrom = $('#filter-from').value;
+  const fTo   = $('#filter-to').value;
+  const kw    = $('#filter-kw').value.trim().toLowerCase();
+
+  let list = sortedRecords().reverse();
+
+  if (fType) list = list.filter(r => r.type === fType);
+  if (fFrom) list = list.filter(r => r.date >= fFrom);
+  if (fTo)   list = list.filter(r => r.date <= fTo);
+  if (kw) {
+    list = list.filter(r =>
+      [r.no, r.breed, r.bullNo, r.unit, r.partner, r.remark]
+        .some(v => String(v || '').toLowerCase().includes(kw)));
+  }
+
+  const tb = $('#tbody-records');
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="16" class="empty">没有符合条件的单据</td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = list.map(r => `
+    <tr>
+      <td>${esc(r.no)}</td>
+      <td><span class="tag ${r.type === 'in' ? 'tag-in' : 'tag-out'}">${r.type === 'in' ? '进货' : '销售'}</span></td>
+      <td>${esc(r.date)}</td>
+      <td>${esc(r.breed)}</td>
+      <td>${esc(r.bullNo)}</td>
+      <td>${fmtQty(r.qty)}</td>
+      <td>${esc(r.unit || '—')}</td>
+      <td>${fmtQty(r.stockAfter)}</td>
+      <td>${money(r.type === 'in' ? r.purchasePrice : r.costPrice)}</td>
+      <td>${r.type === 'out' ? money(r.salePrice) : '—'}</td>
+      <td class="${r.type === 'in' ? 'red' : 'green'}">${money(r.amount)}</td>
+      <td class="${r.grossProfit > 0 ? 'green' : (r.grossProfit < 0 ? 'red' : 'muted')}">
+        ${r.type === 'out' ? money(r.grossProfit) : '—'}
+      </td>
+      <td>${r.type === 'out' ? (r.grossRate || 0).toFixed(2) + '%' : '—'}</td>
+      <td>${esc(r.partner || '—')}</td>
+      <td>${esc(r.remark || '—')}</td>
+      <td><button class="btn tiny danger" data-del-record="${r.id}">删除</button></td>
+    </tr>`).join('');
+}
+
+/* =========================================================
+   八、渲染：资金台账
+   ========================================================= */
+function fillOpeningForm() {
+  $('#opening-amount').value = db.openingCapital !== undefined && db.openingCapital !== null
+    ? db.openingCapital : '';
+  $('#opening-date').value   = db.openingDate || '';
+  $('#opening-remark').value = db.openingRemark || '';
+}
+
+function renderFunds() {
+  const opening = round2(db.openingCapital || 0);
+  const recs    = sortedRecords();
+
+  let balance = opening, totalIn = 0, totalOut = 0;
+  const rows = [];
+
+  recs.forEach(r => {
+    const income  = r.type === 'out' ? r.amount : 0;
+    const expense = r.type === 'in'  ? r.amount : 0;
+    totalIn  = round2(totalIn + income);
+    totalOut = round2(totalOut + expense);
+    balance  = round2(balance + income - expense);
+    rows.push({ r, income, expense, balance });
+  });
+
+  $('#funds-cards').innerHTML = `
+    <div class="card">
+      <div class="label">原始（期初）资金</div>
+      <div class="value ${opening > 0 ? 'blue' : 'muted'}">${money(opening)}</div>
+      <div class="sub">${db.openingDate ? '期初日期 ' + esc(db.openingDate) : '可在上方表单录入'}</div>
+    </div>
+    <div class="card">
+      <div class="label">资金总收入</div>
+      <div class="value green">${money(totalIn)}</div>
+      <div class="sub">来自销售单</div>
+    </div>
+    <div class="card">
+      <div class="label">资金总支出</div>
+      <div class="value red">${money(totalOut)}</div>
+      <div class="sub">来自进货单</div>
+    </div>
+    <div class="card highlight">
+      <div class="label">当前资金余额</div>
+      <div class="value ${balance >= 0 ? 'blue' : 'red'}">${money(balance)}</div>
+      <div class="sub">期初 + 收入 − 支出</div>
+    </div>
+  `;
+
+  const openingRow = `
+    <tr style="background:#fffbeb">
+      <td>${esc(db.openingDate || '—')}</td>
+      <td>—</td>
+      <td><span class="tag tag-open">期初资金</span></td>
+      <td>原始资金录入${db.openingRemark ? ' · ' + esc(db.openingRemark) : ''}${opening > 0 ? '' : '（未录入）'}</td>
+      <td class="green">${opening > 0 ? money(opening) : '—'}</td>
+      <td>—</td>
+      <td><b>${money(opening)}</b></td>
+    </tr>`;
+
+  const tb = $('#tbody-funds');
+  tb.innerHTML = rows.reverse().map(({ r, income, expense, balance }) => `
+    <tr>
+      <td>${esc(r.date)}</td>
+      <td>${esc(r.no)}</td>
+      <td><span class="tag ${r.type === 'in' ? 'tag-in' : 'tag-out'}">${r.type === 'in' ? '进货支出' : '销售收款'}</span></td>
+      <td>${esc(r.breed)} / ${esc(r.bullNo)} × ${fmtQty(r.qty)}${r.unit ? ' ' + esc(r.unit) : ''}${r.partner ? ' · ' + esc(r.partner) : ''}</td>
+      <td class="green">${income ? money(income) : '—'}</td>
+      <td class="red">${expense ? money(expense) : '—'}</td>
+      <td><b>${money(balance)}</b></td>
+    </tr>`).join('') + openingRow;
+}
+
+$('#form-opening').addEventListener('submit', e => {
+  e.preventDefault();
+  const amt = $('#opening-amount').value.trim();
+  if (amt === '') { toast('请输入期初金额（可填 0）'); return; }
+  const num = Number(amt);
+  if (isNaN(num) || num < 0) { toast('期初金额必须为不小于 0 的数字'); return; }
+
+  db.openingCapital = round2(num);
+  db.openingDate    = $('#opening-date').value || today();
+  db.openingRemark  = $('#opening-remark').value.trim();
+  save();
+
+  renderFunds();
+  renderHome();
+  toast('期初资金已保存');
+});
+
+$('#btn-opening-clear').addEventListener('click', () => {
+  if (!confirm('确定将期初资金清零吗？资金余额会相应减少。')) return;
+  db.openingCapital = 0;
+  db.openingDate    = '';
+  db.openingRemark  = '';
+  save();
+  fillOpeningForm();
+  renderFunds();
+  renderHome();
+  toast('期初资金已清零');
+});
+
+/* =========================================================
+   九、渲染：供货商 / 客户
+   ========================================================= */
+function renderPartners(kind) {
+  const list = kind === 'supplier' ? db.suppliers : db.customers;
+  const tb = $(kind === 'supplier' ? '#tbody-supplier' : '#tbody-customer');
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="6" class="empty">暂无数据</td></tr>`;
+    return;
+  }
+  tb.innerHTML = list.map(p => `
+    <tr>
+      <td>${esc(p.name)}</td>
+      <td>${esc(p.contact || '—')}</td>
+      <td>${esc(p.phone || '—')}</td>
+      <td>${esc(p.address || '—')}</td>
+      <td>${esc(p.remark || '—')}</td>
+      <td><button class="btn tiny danger" data-del-partner="${kind}" data-id="${p.id}">删除</button></td>
+    </tr>`).join('');
+}
+
+/* =========================================================
+   十、自动补全
+   ========================================================= */
+function refreshDatalists() {
+  const breeds = new Set(), bulls = new Set(), units = new Set();
+  db.records.forEach(r => {
+    if (r.breed)  breeds.add(r.breed);
+    if (r.bullNo) bulls.add(r.bullNo);
+    if (r.unit)   units.add(r.unit);
+  });
+  const opts = arr => arr.map(v => `<option value="${esc(v)}"></option>`).join('');
+  $('#dl-breeds').innerHTML    = opts([...breeds]);
+  $('#dl-bulls').innerHTML     = opts([...bulls]);
+  $('#dl-suppliers').innerHTML = opts(db.suppliers.map(s => s.name));
+  $('#dl-customers').innerHTML = opts(db.customers.map(s => s.name));
+
+  const defaultUnits = ['支', '剂', '份', '个', '件', '箱', '瓶', '包'];
+  $('#dl-units').innerHTML = opts([...new Set([...defaultUnits, ...units])]);
+}
+
+/* =========================================================
+   十一、进货表单
+   ========================================================= */
+function prepareInForm() {
+  $('#in-date').value = today();
+  $('#in-no').value   = genNo('in', today());
+}
+
+$('#in-date').addEventListener('change', e => {
+  $('#in-no').value = genNo('in', e.target.value || today());
+});
+
+['#in-breed', '#in-bull'].forEach(sel => {
+  $(sel).addEventListener('change', () => {
+    const b = $('#in-breed').value.trim();
+    const n = $('#in-bull').value.trim();
+    if (b && n && !$('#in-unit').value.trim()) {
+      const u = findLastUnit(b, n);
+      if (u) $('#in-unit').value = u;
+    }
+  });
+});
+
+$('#form-in').addEventListener('submit', e => {
+  e.preventDefault();
+
+  const breed  = $('#in-breed').value.trim();
+  const bullNo = $('#in-bull').value.trim();
+  const unit   = $('#in-unit').value.trim();
+  const qty    = Number($('#in-qty').value);
+  const price  = Number($('#in-price').value);
+  const date   = $('#in-date').value;
+
+  if (!breed || !bullNo) { toast('请填写冻精品种和牛号'); return; }
+  if (!unit)             { toast('请填写单位'); return; }
+  if (!(qty > 0))        { toast('进货数量必须大于 0'); return; }
+  if (!(price >= 0))     { toast('进货单价不能为负数'); return; }
+  if (!date)             { toast('请选择操作日期'); return; }
+
+  const rec = {
+    id: uid(),
+    no: genNo('in', date),
+    type: 'in',
+    date,
+    partner: $('#in-supplier').value.trim(),
+    breed, bullNo, unit,
+    qty: round2(qty),
+    purchasePrice: round2(price),
+    salePrice: 0,
+    costPrice: 0,
+    amount: 0,
+    grossProfit: 0,
+    grossRate: 0,
+    stockAfter: 0,
+    remark: $('#in-remark').value.trim(),
+    createdAt: Date.now()
+  };
+
+  db.records.push(rec);
+  recalcAll();
+  refreshDatalists();
+  renderHome();
+  toast(`进货单 ${rec.no} 已保存，库存已增加`);
+  e.target.reset();
+  prepareInForm();
+  $('#in-breed').focus();
+});
+
+$('#form-in').addEventListener('reset', () => setTimeout(prepareInForm, 0));
+
+/* =========================================================
+   十二、销售表单
+   ========================================================= */
+function prepareOutForm() {
+  $('#out-date').value = today();
+  $('#out-no').value   = genNo('out', today());
+  updateOutInfo();
+}
+
+$('#out-date').addEventListener('change', e => {
+  $('#out-no').value = genNo('out', e.target.value || today());
+});
+
+function autoFillOutUnit() {
+  const b = $('#out-breed').value.trim();
+  const n = $('#out-bull').value.trim();
+  if (!b || !n) return;
+  const u = findLastUnit(b, n);
+  if (u) $('#out-unit').value = u;
+}
+
+function updateOutInfo() {
+  const b = $('#out-breed').value.trim();
+  const n = $('#out-bull').value.trim();
+  const box = $('#out-info');
+
+  if (!b || !n) {
+    box.innerHTML = '选择商品后，这里会显示该「品种 + 牛号」的当前库存与加权成本。';
+    return;
+  }
+
+  const item = computeInventory()[productKey(b, n)];
+  if (!item) {
+    box.innerHTML = `<span class="warn">⚠ 「${esc(b)} / ${esc(n)}」暂无进货库存记录，请先录入进货单。</span>`;
+    return;
+  }
+
+  const qty   = Number($('#out-qty').value) || 0;
+  const price = Number($('#out-price').value) || 0;
+  const avg   = item.qty > 0 ? item.amount / item.qty : 0;
+  const revenue = round2(qty * price);
+  const cost    = round2(avg * qty);
+  const profit  = round2(revenue - cost);
+  const rate    = revenue > 0 ? round2(profit / revenue * 100) : 0;
+
+  box.innerHTML = `
+    当前库存：<b>${fmtQty(item.qty)} ${esc(item.unit || '')}</b>　
+    加权成本单价：<b>${money(avg)}</b>　
+    本次预计毛利：<b class="${profit >= 0 ? 'green' : 'red'}">${money(profit)}</b>　
+    毛利率：<b>${rate.toFixed(2)}%</b>
+    ${qty > item.qty ? '<br><span class="warn">⚠ 销售数量已超过当前库存，保存后将出现负库存。</span>' : ''}
+  `;
+}
+
+$('#out-breed').addEventListener('change', () => { autoFillOutUnit(); updateOutInfo(); });
+$('#out-bull').addEventListener('change', () => { autoFillOutUnit(); updateOutInfo(); });
+['#out-qty', '#out-price'].forEach(sel => $(sel).addEventListener('input', updateOutInfo));
+
+$('#form-out').addEventListener('submit', e => {
+  e.preventDefault();
+
+  const breed  = $('#out-breed').value.trim();
+  const bullNo = $('#out-bull').value.trim();
+  const unit   = $('#out-unit').value.trim();
+  const qty    = Number($('#out-qty').value);
+  const price  = Number($('#out-price').value);
+  const date   = $('#out-date').value;
+
+  if (!breed || !bullNo) { toast('请填写冻精品种和牛号'); return; }
+  if (!unit)             { toast('请填写单位'); return; }
+  if (!(qty > 0))        { toast('销售数量必须大于 0'); return; }
+  if (!(price >= 0))     { toast('销售单价不能为负数'); return; }
+  if (!date)             { toast('请选择操作日期'); return; }
+
+  const item  = computeInventory()[productKey(breed, bullNo)];
+  const stock = item ? item.qty : 0;
+  if (!item) {
+    if (!confirm(`「${breed} / ${bullNo}」没有进货记录，仍要继续销售吗？`)) return;
+  } else if (qty > stock + 1e-9) {
+    if (!confirm(`「${breed} / ${bullNo}」当前库存仅 ${fmtQty(stock)} ${item.unit || ''}，\n本次销售 ${fmtQty(qty)} ${unit}，将出现负库存。\n确定继续吗？`)) return;
+  }
+
+  const rec = {
+    id: uid(),
+    no: genNo('out', date),
+    type: 'out',
+    date,
+    partner: $('#out-customer').value.trim(),
+    breed, bullNo, unit,
+    qty: round2(qty),
+    purchasePrice: 0,
+    salePrice: round2(price),
+    costPrice: 0,
+    amount: 0,
+    grossProfit: 0,
+    grossRate: 0,
+    stockAfter: 0,
+    remark: $('#out-remark').value.trim(),
+    createdAt: Date.now()
+  };
+
+  db.records.push(rec);
+  recalcAll();
+  refreshDatalists();
+  renderHome();
+  toast(`销售单 ${rec.no} 已保存，库存已扣减`);
+  e.target.reset();
+  prepareOutForm();
+  $('#out-breed').focus();
+});
+
+$('#form-out').addEventListener('reset', () => setTimeout(prepareOutForm, 0));
+
+/* =========================================================
+   十三、供货商 / 客户表单
+   ========================================================= */
+function bindPartnerForm(kind, formId) {
+  $(formId).addEventListener('submit', e => {
+    e.preventDefault();
+    const f = e.target;
+    const name = f.elements['name'].value.trim();
+    if (!name) { toast('请填写名称'); return; }
+
+    const list = kind === 'supplier' ? db.suppliers : db.customers;
+    if (list.some(p => p.name === name)) { toast('该名称已存在'); return; }
+
+    list.push({
+      id: uid(),
+      name,
+      contact: f.elements['contact'].value.trim(),
+      phone:   f.elements['phone'].value.trim(),
+      address: f.elements['address'].value.trim(),
+      remark:  f.elements['remark'].value.trim(),
+      createdAt: Date.now()
+    });
+
+    save();
+    f.reset();
+    renderPartners(kind);
+    refreshDatalists();
+    toast('添加成功');
+  });
+}
+bindPartnerForm('supplier', '#form-supplier');
+bindPartnerForm('customer', '#form-customer');
+
+/* =========================================================
+   十四、删除操作
+   ========================================================= */
+document.addEventListener('click', e => {
+  const t = e.target;
+
+  if (t.dataset && t.dataset.delRecord) {
+    const id = t.dataset.delRecord;
+    const rec = db.records.find(r => r.id === id);
+    if (!rec) return;
+    if (!confirm(`确定删除单据 ${rec.no} 吗？\n删除后库存结余与资金数据将自动重算。`)) return;
+    db.records = db.records.filter(r => r.id !== id);
+    recalcAll();
+    refreshAll();
+    toast('单据已删除');
+    return;
+  }
+
+  if (t.dataset && t.dataset.delPartner) {
+    const kind = t.dataset.delPartner;
+    const id = t.dataset.id;
+    const list = kind === 'supplier' ? db.suppliers : db.customers;
+    const p = list.find(x => x.id === id);
+    if (!p) return;
+    if (!confirm(`确定删除「${p.name}」吗？`)) return;
+    if (kind === 'supplier') db.suppliers = db.suppliers.filter(x => x.id !== id);
+    else                     db.customers = db.customers.filter(x => x.id !== id);
+    save();
+    renderPartners(kind);
+    refreshDatalists();
+    toast('已删除');
+  }
+});
+
+/* =========================================================
+   十五、筛选 / 刷新
+   ========================================================= */
+['#filter-type', '#filter-from', '#filter-to'].forEach(sel =>
+  $(sel).addEventListener('change', renderRecords));
+$('#filter-kw').addEventListener('input', renderRecords);
+
+$('#btn-filter-reset').addEventListener('click', () => {
+  $('#filter-type').value = '';
+  $('#filter-from').value = '';
+  $('#filter-to').value   = '';
+  $('#filter-kw').value   = '';
+  renderRecords();
+});
+
+$('#btn-refresh').addEventListener('click', async () => {
+  try {
+    await pullData(true);
+    setSyncState('已同步 · ' + new Date().toLocaleTimeString(), 'ok');
+    toast('数据已刷新');
+  } catch (e) {
+    toast('刷新失败：' + e.message);
+  }
+});
+
+/* =========================================================
+   十六、统一刷新
+   ========================================================= */
+function refreshAll() {
+  refreshDatalists();
+
+  const active = $$('.view').find(v => v.classList.contains('active'));
+  const name = active ? active.id.replace('view-', '') : 'home';
+
+  if (name === 'home')      renderHome();
+  if (name === 'records')   renderRecords();
+  if (name === 'funds')     renderFunds();
+  if (name === 'suppliers') renderPartners('supplier');
+  if (name === 'customers') renderPartners('customer');
+  if (name === 'add-in')    { $('#in-no').value  = genNo('in',  $('#in-date').value  || today()); }
+  if (name === 'add-out')   { $('#out-no').value = genNo('out', $('#out-date').value || today()); updateOutInfo(); }
+}
+
+/* =========================================================
+   十七、窗口聚焦 / 切回时自动同步
+   ========================================================= */
+let lastPull = 0;
+async function autoPull() {
+  if (!token || saving) return;
+  if (Date.now() - lastPull < 3000) return;
+  lastPull = Date.now();
+  try {
+    await pullData(true);
+    setSyncState('已同步 · ' + new Date().toLocaleTimeString(), 'ok');
+  } catch (e) { /* 静默失败 */ }
+}
+window.addEventListener('focus', autoPull);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) autoPull();
+});
+
+/* =========================================================
+   十八、启动
+   ========================================================= */
+(async function boot() {
+  if (location.protocol === 'file:') {
+    $('#env-tip').style.display = 'flex';
+    return;
+  }
+
+  // 健康检查
+  try {
+    await fetch('/api/health', { cache: 'no-store' });
+  } catch (e) {
+    $('#env-tip').style.display = 'flex';
+    return;
+  }
+
+  // 恢复会话
+  if (token) {
+    try {
+      const r = await api('/api/me');
+      await enterSystem(r.user);
+      return;
+    } catch (e) {
+      logoutLocal();
+    }
+  }
+
+  $('#auth-page').style.display = 'flex';
+  setTimeout(() => $('#login-user').focus(), 100);
+})();
+</script>
+</body>
+</html>
